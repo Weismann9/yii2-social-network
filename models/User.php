@@ -2,73 +2,133 @@
 
 namespace app\models;
 
-class User extends \yii\base\BaseObject implements \yii\web\IdentityInterface
+use Yii;
+use yii\base\Model;
+use yii\base\NotSupportedException;
+use yii\db\ActiveRecord;
+use yii\web\IdentityInterface;
+
+/**
+ * This is the model class for table "user".
+ *
+ * @property string $id
+ * @property string $email
+ * @property string $username
+ * @property string $password_hash
+ * @property string $salt
+ * @property string $auth_key
+ * @property string $access_token
+ * @property string $verification_token
+ * @property int $status
+ */
+class User extends ActiveRecord implements IdentityInterface
 {
-    public $id;
-    public $username;
-    public $password;
-    public $authKey;
-    public $accessToken;
-
-    private static $users = [
-        '100' => [
-            'id' => '100',
-            'username' => 'admin',
-            'password' => 'admin',
-            'authKey' => 'test100key',
-            'accessToken' => '100-token',
-        ],
-        '101' => [
-            'id' => '101',
-            'username' => 'demo',
-            'password' => 'demo',
-            'authKey' => 'test101key',
-            'accessToken' => '101-token',
-        ],
-    ];
-
+    const STATUS_BLOCKED = 0;
+    const STATUS_ACTIVE = 1;
+    const STATUS_WAIT = 2;
 
     /**
      * {@inheritdoc}
+     */
+    public static function tableName()
+    {
+        return 'user';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function rules()
+    {
+        return [
+            [['email'], 'string', 'max' => 64],
+            [['username', 'salt', 'auth_key', 'verification_token'], 'string', 'max' => 32],
+            [['password_hash'], 'string', 'max' => 60],
+            [['status'], 'in', 'range' => array_keys(self::getStatuses())]
+        ];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function attributeLabels()
+    {
+        return [
+            'id' => 'ID',
+            'email' => 'Email',
+            'username' => 'Username',
+            'password_hash' => 'Password Hash',
+            'salt' => 'Salt',
+            'auth_key' => 'Auth Key',
+            'verification_token' => 'Verification Token',
+            'status' => 'Status',
+        ];
+    }
+
+    /**
+     * Get status name
+     *
+     * @return mixed
+     */
+    public function getStatusName()
+    {
+        return self::getStatuses()[$this->status];
+    }
+
+    /**
+     * Get statuses array
+     *
+     * @return array
+     */
+    public function getStatuses()
+    {
+        return [
+            self::STATUS_BLOCKED => 'Blocked',
+            self::STATUS_ACTIVE => 'Active',
+            self::STATUS_WAIT => 'Waiting for confirm',
+        ];
+    }
+
+    /**
+     * @param int|string $id
+     * @return User|null|IdentityInterface
      */
     public static function findIdentity($id)
     {
-        return isset(self::$users[$id]) ? new static(self::$users[$id]) : null;
+        return static::findOne($id);
     }
 
     /**
-     * {@inheritdoc}
+     * @param mixed $token
+     * @param null $type
+     * @return void|IdentityInterface
+     * @throws NotSupportedException
      */
     public static function findIdentityByAccessToken($token, $type = null)
     {
-        foreach (self::$users as $user) {
-            if ($user['accessToken'] === $token) {
-                return new static($user);
-            }
-        }
-
-        return null;
+        throw new NotSupportedException('findIdentityByAccessToken is not implemented.');
     }
 
     /**
-     * Finds user by username
-     *
-     * @param string $username
-     * @return static|null
+     * @param $verification_token
+     * @return User|null
+     */
+    public static function findIdentityByVerificationToken($verification_token)
+    {
+        return static::findOne(['verification_token' => $verification_token]);
+    }
+
+    /**
+     * @param $username
+     * @return User|null
      */
     public static function findByUsername($username)
     {
-        foreach (self::$users as $user) {
-            if (strcasecmp($user['username'], $username) === 0) {
-                return new static($user);
-            }
-        }
-
-        return null;
+        return static::findOne(['username' => $username]);
     }
 
     /**
-     * {@inheritdoc}
+     * @return int|string
      */
     public function getId()
     {
@@ -76,29 +136,89 @@ class User extends \yii\base\BaseObject implements \yii\web\IdentityInterface
     }
 
     /**
-     * {@inheritdoc}
+     * @return string
      */
     public function getAuthKey()
     {
-        return $this->authKey;
+        return $this->auth_key;
     }
 
     /**
-     * {@inheritdoc}
+     * @param string $authKey
+     * @return bool
      */
     public function validateAuthKey($authKey)
     {
-        return $this->authKey === $authKey;
+        return $this->getAuthKey() === $authKey;
     }
 
     /**
-     * Validates password
-     *
-     * @param string $password password to validate
-     * @return bool if password provided is valid for current user
+     * @param $password_hash
+     * @return string
+     * @throws \yii\base\Exception
      */
-    public function validatePassword($password)
+    public function setPassword($password_hash)
     {
-        return $this->password === $password;
+        return $this->password_hash = Yii::$app->security->generatePasswordHash($password_hash);
+    }
+
+    /**
+     * @return string
+     * @throws \yii\base\Exception
+     */
+    public function generateVerificationToken()
+    {
+        return $this->verification_token = Yii::$app->security->generateRandomString();
+    }
+
+    /**
+     * @param $password_hash
+     * @return bool
+     */
+    public function validatePassword($password_hash)
+    {
+        return Yii::$app->security->validatePassword($password_hash, $this->password_hash);
+    }
+
+    /**
+     * @return string
+     * @throws \yii\base\Exception
+     */
+    public function generateAuthKey()
+    {
+        return $this->auth_key = Yii::$app->security->generateRandomString();
+    }
+
+    /**
+     * @param bool $insert
+     * @return bool
+     * @throws \yii\base\Exception
+     */
+    public function beforeSave($insert)
+    {
+        if (parent::beforeSave($insert)) {
+            if ($this->isNewRecord) {
+                $this->generateAuthKey();
+                $this->generateVerificationToken();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    public function sendConfirmEmail()
+    {
+        return Yii::$app->mailer->compose(['html' => 'user-verify-html'], ['user' => $this])
+            ->setFrom([Yii::$app->params['adminEmail'] => Yii::$app->name])
+            ->setTo($this->email)
+            ->setSubject('Email confirmation for ' . Yii::$app->name)
+            ->send();
+    }
+
+    public function verify()
+    {
+        $this->verification_token = null;
+        $this->status = self::STATUS_ACTIVE;
+        return $this->save();
     }
 }

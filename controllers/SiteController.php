@@ -2,6 +2,8 @@
 
 namespace app\controllers;
 
+use app\models\SignupForm;
+use app\models\User;
 use Yii;
 use yii\filters\AccessControl;
 use yii\web\Controller;
@@ -96,6 +98,45 @@ class SiteController extends Controller
         Yii::$app->user->logout();
 
         return $this->goHome();
+    }
+
+
+    /**
+     * Sign-up action
+     *
+     * @return string|Response
+     * @throws \yii\base\Exception
+     */
+    public function actionSignup()
+    {
+        if (!Yii::$app->user->isGuest) {
+            return $this->goHome();
+        }
+
+        $model = new SignupForm();
+        if ($model->load(Yii::$app->request->post()) && $model->signup()) {
+            return $this->goHome();
+        }
+
+        return $this->render('signup', [
+            'model' => $model,
+        ]);
+    }
+
+    /**
+     * @param $token
+     * @return string
+     */
+    public function actionVerifyUser($token)
+    {
+        if ($user = User::findIdentityByVerificationToken($token))
+            if ($user->verify()) {
+                Yii::$app->session->setFlash('success', 'Account verified!');
+                Yii::$app->user->login($user);
+                return $this->render('index');
+            }
+        Yii::$app->session->setFlash('danger', 'Invalid token.');
+        return $this->render('index');
     }
 
     /**

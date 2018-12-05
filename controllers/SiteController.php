@@ -2,19 +2,14 @@
 
 namespace app\controllers;
 
-use app\models\Conversation;
-use app\models\ConversationMessage;
 use app\models\SignupForm;
 use app\models\User;
 use Yii;
-use yii\data\ActiveDataProvider;
 use yii\filters\AccessControl;
 use yii\web\Controller;
-use yii\web\ForbiddenHttpException;
 use yii\web\Response;
 use yii\filters\VerbFilter;
 use app\models\LoginForm;
-use app\models\ContactForm;
 
 class SiteController extends Controller
 {
@@ -145,49 +140,5 @@ class SiteController extends Controller
             }
         Yii::$app->session->setFlash('danger', 'Invalid token.');
         return $this->render('index');
-    }
-
-    /**
-     * Displays contact page.
-     *
-     * @return Response|string
-     */
-    public function actionContact()
-    {
-        $model = new ContactForm();
-        if ($model->load(Yii::$app->request->post()) && $model->contact(Yii::$app->params['adminEmail'])) {
-            Yii::$app->session->setFlash('contactFormSubmitted');
-
-            return $this->refresh();
-        }
-        return $this->render('contact', [
-            'model' => $model,
-        ]);
-    }
-
-    /**
-     * Displays about page.
-     *
-     * @return string
-     */
-    public function actionAbout()
-    {
-        return $this->render('about');
-    }
-
-    /**
-     * @var User Yii::$app->user->identity
-     * @return string
-     */
-    public function actionConversations()
-    {
-
-        $dataProvider = new ActiveDataProvider([
-            'query' => User::findOne(Yii::$app->user->identity->getId())->getConversations()
-        ]);
-
-        return $this->render('conversations', [
-            'dataProvider' => $dataProvider,
-        ]);
     }
 }

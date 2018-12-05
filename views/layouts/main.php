@@ -39,19 +39,23 @@ AppAsset::register($this);
     echo Nav::widget([
         'options' => ['class' => 'navbar-nav navbar-right'],
         'items' => [
-            ['label' => 'Home', 'url' => ['/site/index']],
-            ['label' => 'About', 'url' => ['/site/about']],
-            ['label' => 'Contact', 'url' => ['/site/contact']],
-            Yii::$app->user->isGuest ?
-                ['label' => 'Sign Up', 'url' => ['/site/signup']]
-                : '',
-            Yii::$app->user->isGuest ? (
-            ['label' => 'Login', 'url' => ['/site/login']]
-            ) : (
+            Yii::$app->user->isGuest ? '' : ['label' => 'Followers', 'url' => ['/user/followers', 'id' => Yii::$app->user->identity->getId()]],
+            ['label' => 'Conversations', 'url' => ['/conversation/display']],
+            Yii::$app->user->can('admin') || Yii::$app->user->can('moderator') ?
+                [
+                    'label' => 'Administration',
+                    'items' => [
+                        ['label' => 'Conversations', 'url' => ['/conversation/index']],
+                        ['label' => 'Users', 'url' => ['/user/index']],
+                    ]
+                ] : '',
+            Yii::$app->user->isGuest ? ['label' => 'Sign Up', 'url' => ['/site/signup']] : '',
+            Yii::$app->user->isGuest ? '' : ['label' => Yii::$app->user->identity->profile->getName(), 'url' => ['/user/display', 'id' => Yii::$app->user->identity->getId()]],
+            Yii::$app->user->isGuest ? (['label' => 'Login', 'url' => ['/site/login']]) : (
                 '<li>'
                 . Html::beginForm(['/site/logout'], 'post')
                 . Html::submitButton(
-                    'Logout (' . Yii::$app->user->identity->username . ')',
+                    'Logout (' . Yii::$app->user->identity->profile->getName() . ')',
                     ['class' => 'btn btn-link logout']
                 )
                 . Html::endForm()

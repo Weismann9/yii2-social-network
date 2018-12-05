@@ -2,11 +2,15 @@
 
 namespace app\controllers;
 
+use app\models\Conversation;
+use app\models\ConversationMessage;
 use app\models\SignupForm;
 use app\models\User;
 use Yii;
+use yii\data\ActiveDataProvider;
 use yii\filters\AccessControl;
 use yii\web\Controller;
+use yii\web\ForbiddenHttpException;
 use yii\web\Response;
 use yii\filters\VerbFilter;
 use app\models\LoginForm;
@@ -22,12 +26,17 @@ class SiteController extends Controller
         return [
             'access' => [
                 'class' => AccessControl::className(),
-                'only' => ['logout'],
+                'only' => ['logout', 'login', 'signup'],
                 'rules' => [
                     [
                         'actions' => ['logout'],
                         'allow' => true,
                         'roles' => ['@'],
+                    ],
+                    [
+                        'allow' => true,
+                        'actions' => ['login', 'signup'],
+                        'roles' => ['?'],
                     ],
                 ],
             ],
@@ -100,7 +109,6 @@ class SiteController extends Controller
         return $this->goHome();
     }
 
-
     /**
      * Sign-up action
      *
@@ -165,5 +173,21 @@ class SiteController extends Controller
     public function actionAbout()
     {
         return $this->render('about');
+    }
+
+    /**
+     * @var User Yii::$app->user->identity
+     * @return string
+     */
+    public function actionConversations()
+    {
+
+        $dataProvider = new ActiveDataProvider([
+            'query' => User::findOne(Yii::$app->user->identity->getId())->getConversations()
+        ]);
+
+        return $this->render('conversations', [
+            'dataProvider' => $dataProvider,
+        ]);
     }
 }

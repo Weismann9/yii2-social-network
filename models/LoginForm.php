@@ -51,6 +51,16 @@ class LoginForm extends Model
     }
 
     /**
+     * Finds user by [[username]]
+     *
+     * @return User|null
+     */
+    public function getUser()
+    {
+        return User::findByUsername($this->username);
+    }
+
+    /**
      *Validates the user status
      *
      */
@@ -78,15 +88,5 @@ class LoginForm extends Model
             return Yii::$app->user->login($this->getUser(), $this->rememberMe ? 60 : 0);
         }
         return false;
-    }
-
-    /**
-     * Finds user by [[username]]
-     *
-     * @return User|null
-     */
-    public function getUser()
-    {
-        return User::findByUsername($this->username);
     }
 }

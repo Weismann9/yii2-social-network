@@ -27,12 +27,13 @@ class SignupForm extends Model
     /**
      * @return User|bool
      * @throws \yii\base\Exception
+     * @throws \Exception
      */
     public function signup()
     {
         if ($this->validate()) {
             $user = $this->getUser();
-            if ($user->save() && $user->sendConfirmEmail()) {
+            if ($user->save()) {
                 Yii::$app->session->setFlash('success', 'Check your email to confirm the registration.');
                 return true;
             }
